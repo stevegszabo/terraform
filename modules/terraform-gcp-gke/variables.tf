@@ -40,12 +40,6 @@ variable "gcp_instance_crypto_key" {
   type        = string
 }
 
-variable "gcp_instance_service_account" {
-  description = "gcp_instance_service_account"
-  default     = "engineering-00"
-  type        = string
-}
-
 variable "gcp_instance_network_vpc" {
   description = "gcp_instance_network_vpc"
   default     = "engineering-00"

@@ -6,7 +6,6 @@ locals {
   gcp_instance_environment     = var.gcp_instance_environment
   gcp_instance_keyring         = var.gcp_instance_keyring
   gcp_instance_crypto_key      = var.gcp_instance_crypto_key
-  gcp_instance_service_account = var.gcp_instance_service_account
   gcp_instance_network_vpc     = var.gcp_instance_network_vpc
   gcp_instance_network_subnet  = var.gcp_instance_network_subnet
   gcp_instance_version         = var.gcp_instance_version
@@ -26,6 +25,7 @@ locals {
   gcp_instance_api_access      = var.gcp_instance_api_access
   gcp_instance_accounts        = var.gcp_instance_accounts
   gcp_instance_security_group  = var.gcp_instance_security_group
+  gcp_instance_gar_account     = format("%s-gar", local.gcp_instance_name)
 
   gcp_instance_roles = [
     for index, value in local.gcp_instance_accounts : [
@@ -43,15 +43,6 @@ locals {
     for index, value in flatten(local.gcp_instance_roles) :
       format("%s-%s-%s", value["project"], value["account"], value["role"]) => value
   }
-}
-
-data "google_project" "this" {
-  project_id = local.gcp_instance_project
-}
-
-data "google_service_account" "this" {
-  account_id = local.gcp_instance_service_account
-  depends_on = [google_service_account.this]
 }
 
 data "google_compute_network" "this" {
@@ -73,20 +64,6 @@ data "google_kms_crypto_key" "this" {
   count    = local.gcp_instance_encryption ? 1 : 0
   name     = local.gcp_instance_crypto_key
   key_ring = data.google_kms_key_ring.this[count.index].id
-}
-
-resource "google_kms_crypto_key_iam_member" "compute" {
-  count         = local.gcp_instance_encryption ? 1 : 0
-  crypto_key_id = data.google_kms_crypto_key.this[0].id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = format("serviceAccount:service-%s@compute-system.iam.gserviceaccount.com", data.google_project.this.number)
-}
-
-resource "google_kms_crypto_key_iam_member" "container" {
-  count         = local.gcp_instance_encryption ? 1 : 0
-  crypto_key_id = data.google_kms_crypto_key.this[0].id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = format("serviceAccount:service-%s@container-engine-robot.iam.gserviceaccount.com", data.google_project.this.number)
 }
 
 resource "google_service_account" "this" {
@@ -124,9 +101,7 @@ resource "google_container_cluster" "this" {
   depends_on = [
     google_service_account.this,
     google_service_account_iam_binding.this,
-    google_project_iam_member.this,
-    google_kms_crypto_key_iam_member.compute,
-    google_kms_crypto_key_iam_member.container
+    google_project_iam_member.this
   ]
 
   resource_labels = {
@@ -286,7 +261,7 @@ resource "google_container_cluster" "this" {
       }
 
       auto_provisioning_defaults {
-        service_account   = data.google_service_account.this.email
+        service_account   = google_service_account.this[local.gcp_instance_gar_account].email
         boot_disk_kms_key = local.gcp_instance_encryption ? data.google_kms_crypto_key.this[0].id : null
         oauth_scopes      = ["https://www.googleapis.com/auth/cloud-platform"]
         disk_size         = 25
@@ -318,9 +293,7 @@ resource "google_container_node_pool" "this" {
   depends_on = [
     google_service_account.this,
     google_service_account_iam_binding.this,
-    google_project_iam_member.this,
-    google_kms_crypto_key_iam_member.compute,
-    google_kms_crypto_key_iam_member.container
+    google_project_iam_member.this
   ]
 
   lifecycle {
@@ -348,7 +321,7 @@ resource "google_container_node_pool" "this" {
   }
 
   node_config {
-    service_account   = data.google_service_account.this.email
+    service_account   = google_service_account.this[local.gcp_instance_gar_account].email
     boot_disk_kms_key = local.gcp_instance_encryption ? data.google_kms_crypto_key.this[0].id : null
     oauth_scopes      = ["https://www.googleapis.com/auth/cloud-platform"]
     machine_type      = each.value["machine_type"]

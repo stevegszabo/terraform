@@ -36,7 +36,6 @@ locals {
   gcp_instance_version         = "1.33.5-gke.1162000"
   gcp_instance_keyring         = "kms-01"
   gcp_instance_crypto_key      = "kms-01"
-  gcp_instance_service_account = "gke-01"
   gcp_instance_network_vpc     = "vpc-01"
   gcp_instance_network_subnet  = "vpc-01-subnet-01"
   gcp_instance_pod_cidr        = "10.0.0.0/14"
@@ -81,13 +80,13 @@ locals {
   }
 
   gcp_instance_accounts = {
-    format("%s", local.gcp_instance_service_account) = {
+    format("%s-gar", local.gcp_instance_name) = {
       projects          = local.gcp_instance_managed_projects
       project_roles     = ["roles/artifactregistry.reader"]
       kube_svc_accounts = ["serviceAccount:project-01-xxxxxx.svc.id.goog[base-argocd/gke-01-argocd-image-updater]"]
     },
 
-    format("%s-arg", local.gcp_instance_service_account) = {
+    format("%s-arg", local.gcp_instance_name) = {
       projects          = local.gcp_instance_managed_projects
       project_roles     = ["roles/container.admin"]
       kube_svc_accounts = [
@@ -96,7 +95,7 @@ locals {
       ]
     },
 
-    format("%s-dns", local.gcp_instance_service_account) = {
+    format("%s-dns", local.gcp_instance_name) = {
       projects = [local.gcp_instance_dns_project, local.gcp_instance_project]
       project_roles     = ["roles/dns.admin"]
       kube_svc_accounts = [
@@ -105,13 +104,13 @@ locals {
       ]
     }
 
-    format("%s-gsm", local.gcp_instance_service_account) = {
+    format("%s-gsm", local.gcp_instance_name) = {
       projects          = [local.gcp_instance_project]
       project_roles     = ["roles/secretmanager.secretAccessor"]
       kube_svc_accounts = ["serviceAccount:project-01-xxxxxx.svc.id.goog[base-eso/gke-01-external-secrets]"]
     }
 
-    format("%s-hcv", local.gcp_instance_service_account) = {
+    format("%s-hcv", local.gcp_instance_name) = {
       projects          = [local.gcp_instance_project]
       project_roles     = [
         "roles/cloudkms.viewer",
@@ -121,7 +120,7 @@ locals {
       kube_svc_accounts = ["serviceAccount:project-01-xxxxxx.svc.id.goog[base-vault/gke-01-vault]"]
     }
 
-    format("%s-cfg", local.gcp_instance_service_account) = {
+    format("%s-cfg", local.gcp_instance_name) = {
       projects          = [local.gcp_instance_project]
       project_roles     = [
         "roles/cloudkms.viewer",
@@ -143,7 +142,6 @@ module "gke" {
   gcp_instance_version         = local.gcp_instance_version
   gcp_instance_keyring         = local.gcp_instance_keyring
   gcp_instance_crypto_key      = local.gcp_instance_crypto_key
-  gcp_instance_service_account = local.gcp_instance_service_account
   gcp_instance_network_vpc     = local.gcp_instance_network_vpc
   gcp_instance_network_subnet  = local.gcp_instance_network_subnet
   gcp_instance_pod_cidr        = local.gcp_instance_pod_cidr
