@@ -19,19 +19,10 @@ provider "google" {
 }
 
 locals {
-  gcp_instance_project  = "project-01-xxxxxx"
-  gcp_instance_region   = "northamerica-northeast2"
-  gcp_instance_registry = format("northamerica-northeast2-docker.pkg.dev/%s/gar-01", local.gcp_instance_project)
+  gcp_instance_project = "project-01-xxxxxx"
+  gcp_instance_region  = "northamerica-northeast2"
 
-  gcp_instance_clusters = [
-    {
-      cluster   = "gke-01"
-      keyring   = "kms-01"
-      cryptokey = "kms-01-attestor"
-    }
-  ]
-
-  gcp_instance_images = [
+  gcp_instance_common_images = [
     "auto",
     "cos-nvidia-installer:*",
     "gke-nvidia-installer:*",
@@ -77,33 +68,43 @@ locals {
     "gke.gcr.io/prometheus-engine/rule-evaluator:*",
     "gke.gcr.io/prometheus-to-sd:*",
     "gke.gcr.io/proxy-agent:*",
-    "gke.gcr.io/tpu-device-plugin:*",
-    format("%s/argoproj/*", local.gcp_instance_registry),
-    format("%s/argoprojlabs/*", local.gcp_instance_registry),
-    format("%s/akuity/*", local.gcp_instance_registry),
-    format("%s/brancz/*", local.gcp_instance_registry),
-    format("%s/chaos-mesh/*", local.gcp_instance_registry),
-    format("%s/dexidp/*", local.gcp_instance_registry),
-    format("%s/docker/library/*", local.gcp_instance_registry),
-    format("%s/dynatrace-marketplace-prod/*", local.gcp_instance_registry),
-    format("%s/dynatrace/*", local.gcp_instance_registry),
-    format("%s/linux/*", local.gcp_instance_registry),
-    format("%s/external-dns/*", local.gcp_instance_registry),
-    format("%s/external-secrets/*", local.gcp_instance_registry),
-    format("%s/grafana/*", local.gcp_instance_registry),
-    format("%s/hashicorp/*", local.gcp_instance_registry),
-    format("%s/ingress-nginx/*", local.gcp_instance_registry),
-    format("%s/jetstack/*", local.gcp_instance_registry),
-    format("%s/komodor-public/*", local.gcp_instance_registry),
-    format("%s/prometheus/*", local.gcp_instance_registry),
-    format("%s/stakater/*", local.gcp_instance_registry)
+    "gke.gcr.io/tpu-device-plugin:*"
   ]
+
+  gcp_instance_clusters = {
+    gke-01 = {
+      keyring   = "kms-01"
+      cryptokey = "kms-01-attestor"
+      images    = [
+        format("%s-docker.pkg.dev/%s/gar-01/argoproj/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/argoprojlabs/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/akuity/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/brancz/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/chaos-mesh/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/dexidp/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/docker/library/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/dynatrace-marketplace-prod/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/dynatrace/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/linux/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/external-dns/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/external-secrets/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/grafana/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/hashicorp/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/ingress-nginx/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/jetstack/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/komodor-public/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/prometheus/*", local.gcp_instance_region, local.gcp_instance_project),
+        format("%s-docker.pkg.dev/%s/gar-01/stakater/*", local.gcp_instance_region, local.gcp_instance_project)
+      ]
+    }
+  }
 }
 
 module "bin" {
-  source                = "app.terraform.io/organization/bin/gcp"
-  version               = "1.0.7"
-  gcp_instance_region   = local.gcp_instance_region
-  gcp_instance_clusters = local.gcp_instance_clusters
-  gcp_instance_images   = local.gcp_instance_images
+  source                     = "app.terraform.io/organization/bin/gcp"
+  version                    = "1.1.0"
+  gcp_instance_project       = local.gcp_instance_project
+  gcp_instance_region        = local.gcp_instance_region
+  gcp_instance_common_images = local.gcp_instance_common_images
+  gcp_instance_clusters      = local.gcp_instance_clusters
 }
