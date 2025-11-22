@@ -1,0 +1,114 @@
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: webapp
+spec:
+  method: kubernetes
+  mount: project-01-xxxxxx/gke-01
+  kubernetes:
+    role: webapp
+    serviceAccount: webapp
+    audiences:
+    - vault
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: webapp
+spec:
+  type: kv-v2
+  mount: webapp-engine
+  path: webapp-secret
+  vaultAuthRef: webapp
+  refreshAfter: 60s
+  destination:
+    name: webapp
+    create: true
+  rolloutRestartTargets:
+  - kind: Deployment
+    name: webapp
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: webapp
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-secret-config: "webapp-engine/webapp-secret"
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "webapp-engine/webapp-secret" -}}
+          export WEBAPP_VAULT_SECRET='{{ .Data.data.webapp_password }}'
+          {{- end }}
+        vault.hashicorp.com/auth-path: "auth/project-01-xxxxxx/gke-01"
+        vault.hashicorp.com/role: "webapp"
+        vault.hashicorp.com/tls-skip-verify: "true"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: webapp
+      containers:
+      - name: webapp
+        image: northamerica-northeast2-docker.pkg.dev/project-01-xxxxxx/gar-01/webapp:v1.1.2
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 33
+          runAsGroup: 33
+        ports:
+        - name: webapp
+          containerPort: 8080
+        env:
+        - name: WEBAPP_VERSION
+          value: "v1"
+        - name: WEBAPP_PORT
+          value: "8080"
+        - name: WEBAPP_DATABASE
+          value: "database"
+        - name: POSTGRES_USER
+          value: "username"
+        - name: POSTGRES_PASSWORD
+          value: "password"
+        - name: WEBAPP_VAULT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: webapp
+              key: webapp_password
+        livenessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          failureThreshold: 2
+          httpGet:
+            path: /
+            port: webapp
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          failureThreshold: 2
+          httpGet:
+            path: /
+            port: webapp

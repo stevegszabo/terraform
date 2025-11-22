@@ -1,0 +1,1 @@
+path "webapp-engine/data/webapp-secret" { capabilities = ["read", "list"] }
